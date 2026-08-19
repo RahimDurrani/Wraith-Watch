@@ -1,34 +1,11 @@
-# backend/utils/rule_engine.py
-# ─────────────────────────────────────────────────────────
-# Rule-based detection engine.
-# Week 4 deliverable: 8 detection rules, severity scoring,
-# alert generation from parsed log entries.
-#
-# How it works:
-#   1. A log entry is parsed by the ingestion engine
-#   2. run_rules(log_entry) checks it against all rules
-#   3. Matching rules generate Alert objects saved to DB
-#   4. Each alert gets an AbuseIPDB score (if IP present)
-# ─────────────────────────────────────────────────────────
+
 
 import re
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-# Track recent events per IP for threshold-based rules (brute force)
-# Format: { (rule_name, source_ip): [timestamp, ...] }
 _event_window: dict = defaultdict(list)
 
-
-# ── Detection rules ───────────────────────────────────────────────────────────
-# Each rule is a dict:
-#   name        - unique identifier, shown in alert
-#   description - plain-English explanation shown to analyst
-#   pattern     - compiled regex matched against raw_message
-#   log_types   - list of log types this rule applies to ("any" = all)
-#   severity    - info | low | medium | high | critical
-#   threshold   - how many matches within window_secs to fire (None = fire immediately)
-#   window_secs - time window in seconds for threshold rules
 
 RULES = [
     {

@@ -1,19 +1,6 @@
-# backend/utils/ip_reputation.py
-# ─────────────────────────────────────────────────────────
-# AbuseIPDB API integration.
-# Week 6 deliverable: IP reputation lookup on alert creation.
-#
-# Free tier: 1,000 checks per day
-# Sign up at: https://www.abuseipdb.com/api
-# Add your key to .env: ABUSEIPDB_API_KEY=your_key_here
-# ─────────────────────────────────────────────────────────
-
 import os
 import requests
 from datetime import datetime, timedelta
-
-# Simple in-memory cache — avoids checking the same IP twice per session
-# { ip: { score, country, checked_at } }
 _cache: dict = {}
 CACHE_TTL_MINUTES = 60
 

@@ -14,6 +14,64 @@ function LiveLogs() {
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [stats, setStats]           = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
+  const [actionMsg, setActionMsg]     = useState(null);   // feedback after an action
+  const [busy, setBusy]               = useState(false);
+
+  // Extract the first IPv4 address from a log message
+  const extractIP = (msg) => {
+    const m = (msg || "").match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
+    return m ? m[1] : null;
+  };
+
+  // Create an incident from the selected log entry
+  const createIncidentFromLog = async (log) => {
+    setBusy(true);
+    setActionMsg(null);
+    try {
+      const res  = await fetch(`${API}/incidents/from-log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message:    log.message,
+          log_type:   log.log_type,
+          hostname:   log.hostname,
+          flag_level: log.flag_level,
+          source_ip:  extractIP(log.message),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionMsg({ type: "ok", text: `Incident INC-00${data.id} created and saved.` });
+      } else {
+        setActionMsg({ type: "err", text: data.error || "Could not create incident." });
+      }
+    } catch {
+      setActionMsg({ type: "err", text: "Could not reach the backend." });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Look up the log's IP in AbuseIPDB
+  const lookupIP = async (log) => {
+    const ip = extractIP(log.message);
+    if (!ip) { setActionMsg({ type: "err", text: "No IP address found in this log." }); return; }
+    setBusy(true);
+    setActionMsg(null);
+    try {
+      const res  = await fetch(`${API}/ip-lookup?ip=${encodeURIComponent(ip)}`);
+      const data = await res.json();
+      if (data.available) {
+        setActionMsg({ type: "ok", text: `${ip}: abuse score ${data.abuse_score}/100 (${data.abuse_country}).` });
+      } else {
+        setActionMsg({ type: "info", text: `${ip}: ${data.message}` });
+      }
+    } catch {
+      setActionMsg({ type: "err", text: "Could not reach the backend." });
+    } finally {
+      setBusy(false);
+    }
+  };
   const [autoScroll, setAutoScroll] = useState(true);
   const bottomRef  = useRef(null);
   const tableRef   = useRef(null);
@@ -209,7 +267,7 @@ function LiveLogs() {
             return (
               <div
                 key={log.id}
-                onClick={() => setSelectedLog(isSelected ? null : log)}
+                onClick={() => { setSelectedLog(isSelected ? null : log); setActionMsg(null); }}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "60px 54px 80px 110px 1fr",
@@ -321,22 +379,38 @@ function LiveLogs() {
               {/* Action buttons */}
               {selectedLog.flagged && (
                 <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <button style={{
-                    fontSize: 12, padding: "8px 0", borderRadius: 8,
-                    border: "0.5px solid #85B7EB", background: "#E6F1FB",
-                    color: "#0C447C", cursor: "pointer", fontWeight: 500,
-                  }}>
+                  <button
+                    onClick={() => createIncidentFromLog(selectedLog)}
+                    disabled={busy}
+                    style={{
+                      fontSize: 12, padding: "8px 0", borderRadius: 8,
+                      border: "0.5px solid #85B7EB", background: "#E6F1FB",
+                      color: "#0C447C", cursor: busy ? "default" : "pointer", fontWeight: 500,
+                    }}>
                     <i className="ti ti-folder-plus" aria-hidden="true" style={{ marginRight: 6 }} />
                     Create incident from this log
                   </button>
-                  <button style={{
-                    fontSize: 12, padding: "8px 0", borderRadius: 8,
-                    border: "0.5px solid var(--ww-border)", background: "var(--ww-card)",
-                    color: "var(--ww-muted)", cursor: "pointer",
-                  }}>
+                  <button
+                    onClick={() => lookupIP(selectedLog)}
+                    disabled={busy}
+                    style={{
+                      fontSize: 12, padding: "8px 0", borderRadius: 8,
+                      border: "0.5px solid var(--ww-border)", background: "var(--ww-card)",
+                      color: "var(--ww-muted)", cursor: busy ? "default" : "pointer",
+                    }}>
                     <i className="ti ti-world" aria-hidden="true" style={{ marginRight: 6 }} />
                     Look up IP in AbuseIPDB
                   </button>
+
+                  {actionMsg && (
+                    <div style={{
+                      marginTop: 4, padding: "8px 10px", borderRadius: 8, fontSize: 11, lineHeight: 1.5,
+                      background: actionMsg.type === "ok" ? "#EAF3DE" : actionMsg.type === "err" ? "#FAECE7" : "#E6F1FB",
+                      color:      actionMsg.type === "ok" ? "#27500A" : actionMsg.type === "err" ? "#712B13" : "#0C447C",
+                    }}>
+                      {actionMsg.text}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -346,4 +420,5 @@ function LiveLogs() {
     </>
   );
 }
+
 export default LiveLogs;

@@ -1,10 +1,3 @@
-# backend/utils/seeder.py
-# ─────────────────────────────────────────────────────────
-# Seeds the database with demo data on first run.
-# Only runs if the relevant tables are empty.
-# Replaces the old hardcoded lists in models/data.py.
-# ─────────────────────────────────────────────────────────
-
 import logging
 from datetime import datetime, timedelta
 

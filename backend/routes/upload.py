@@ -1,8 +1,3 @@
-# backend/routes/upload.py
-# ─────────────────────────────────────────────────────────
-# Log file upload — now saves parsed entries to DB,
-# runs the rule engine, and enriches alerts with AbuseIPDB.
-# ─────────────────────────────────────────────────────────
 
 import os
 from datetime        import datetime
@@ -16,8 +11,7 @@ from utils.ip_reputation import enrich_alert
 upload_bp = Blueprint("upload", __name__, url_prefix="/api")
 ALLOWED_EXTENSIONS = {"log", "txt", "evtx"}
 
-_upload_history = []   # session-level upload history list
-
+_upload_history = [] 
 
 def _allowed(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -38,7 +32,7 @@ def upload_log():
     save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
     f.save(save_path)
 
-    # ── Read and detect format ────────────────────────────────────────────────
+    # ── Read and detect format 
     with open(save_path, "r", encoding="utf-8", errors="replace") as fh:
         raw_lines = fh.readlines()
 
@@ -48,10 +42,10 @@ def upload_log():
     if fmt == "unknown":
         return jsonify({"error": "Could not detect log format. Expected Apache, syslog, or .evtx"}), 400
 
-    # ── Parse all lines ───────────────────────────────────────────────────────
+    # ── Parse all lines 
     parsed = parse_lines(raw_lines, fmt)
 
-    # ── Save to database ──────────────────────────────────────────────────────
+    # ── Save to database 
     saved_count  = 0
     alert_count  = 0
     flagged_sample = []
@@ -67,7 +61,7 @@ def upload_log():
             source_name = filename,
         )
         db.session.add(log)
-        db.session.flush()   # get log.id
+        db.session.flush()   
 
         # Attach log_id to the entry dict for the rule engine
         entry["log_id"] = log.id
@@ -75,7 +69,7 @@ def upload_log():
 
     db.session.commit()
 
-    # ── Run rule engine on each entry ─────────────────────────────────────────
+    # ── Run rule engine on each entry 
     for entry in parsed:
         fired = run_rules(entry, db, Alert)
         for alert in fired:
@@ -88,7 +82,7 @@ def upload_log():
                     "raw":       entry.get("raw", entry.get("raw_message", ""))[:120],
                 })
 
-    # ── Update log source last_seen ───────────────────────────────────────────
+    # ── Update log source last_seen 
     source = LogSource.query.filter_by(name=filename).first()
     if source:
         source.last_seen  = datetime.utcnow()

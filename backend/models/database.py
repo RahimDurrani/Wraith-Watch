@@ -1,9 +1,3 @@
-# backend/models/database.py
-# ─────────────────────────────────────────────────────────
-# All SQLAlchemy models.
-# Week 2: schema designed
-# Week 9: switch DATABASE_URL to PostgreSQL — nothing else changes
-# ─────────────────────────────────────────────────────────
 
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -36,10 +30,10 @@ class LogEntry(db.Model):
     id             = db.Column(db.Integer,     primary_key=True)
     source_ip      = db.Column(db.String(45),  nullable=True,  index=True)
     timestamp      = db.Column(db.DateTime,    nullable=True,  index=True)
-    log_type       = db.Column(db.String(20),  nullable=False, index=True)   # apache|syslog|evtx
+    log_type       = db.Column(db.String(20),  nullable=False, index=True)  
     raw_message    = db.Column(db.Text,        nullable=False)
     hostname       = db.Column(db.String(100), nullable=True)
-    event_id       = db.Column(db.String(10),  nullable=True,  index=True)   # Windows Event ID
+    event_id       = db.Column(db.String(10),  nullable=True,  index=True)  
     source_name    = db.Column(db.String(200), nullable=True,  index=True)
     ingested_at    = db.Column(db.DateTime,    default=datetime.utcnow)
 
@@ -64,12 +58,11 @@ class Alert(db.Model):
     description     = db.Column(db.Text,        nullable=True)
     severity        = db.Column(db.String(20),  nullable=False, index=True)
     severity_score  = db.Column(db.Integer,     default=0,      index=True)
-    # severity_score: info=1  low=2  medium=3  high=4  critical=5
     rule_name       = db.Column(db.String(100), nullable=True)
     source_ip       = db.Column(db.String(45),  nullable=True,  index=True)
     log_type        = db.Column(db.String(20),  nullable=True)
     status          = db.Column(db.String(20),  default="open", index=True)
-    # status: open | in_progress | false_positive | closed
+   
     abuse_score     = db.Column(db.Integer,     nullable=True)
     abuse_country   = db.Column(db.String(5),   nullable=True)
     abuse_checked   = db.Column(db.Boolean,     default=False)
@@ -108,7 +101,7 @@ class Incident(db.Model):
     description    = db.Column(db.Text,        nullable=True)
     severity       = db.Column(db.String(20),  default="medium", nullable=False)
     status         = db.Column(db.String(30),  default="new",    nullable=False, index=True)
-    # status workflow: new → triaged → investigating → closed
+  
     analyst        = db.Column(db.String(64),  nullable=True)
     created_at     = db.Column(db.DateTime,    default=datetime.utcnow, index=True)
     updated_at     = db.Column(db.DateTime,    default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -190,7 +183,7 @@ class LogSource(db.Model):
     __tablename__ = "log_sources"
     id            = db.Column(db.Integer,     primary_key=True)
     name          = db.Column(db.String(100), unique=True, nullable=False)
-    source_type   = db.Column(db.String(20),  nullable=False)   # apache|syslog|evtx
+    source_type   = db.Column(db.String(20),  nullable=False)   
     hostname      = db.Column(db.String(100), nullable=True)
     last_seen     = db.Column(db.DateTime,    nullable=True, index=True)
     total_logs    = db.Column(db.Integer,     default=0)
@@ -233,11 +226,11 @@ class DetectionRule(db.Model):
     id             = db.Column(db.Integer,     primary_key=True)
     name           = db.Column(db.String(100), unique=True, nullable=False)
     description    = db.Column(db.Text,        nullable=True)
-    pattern        = db.Column(db.Text,        nullable=False)   # regex string
-    log_type       = db.Column(db.String(20),  nullable=True)    # apache|syslog|evtx|any
+    pattern        = db.Column(db.Text,        nullable=False)   
+    log_type       = db.Column(db.String(20),  nullable=True)    
     severity       = db.Column(db.String(20),  nullable=False, default="medium")
-    threshold      = db.Column(db.Integer,     nullable=True)    # for count-based rules
-    window_seconds = db.Column(db.Integer,     nullable=True)    # time window for threshold
+    threshold      = db.Column(db.Integer,     nullable=True)    
+    window_seconds = db.Column(db.Integer,     nullable=True)    
     is_enabled     = db.Column(db.Boolean,     default=True)
     created_at     = db.Column(db.DateTime,    default=datetime.utcnow)
 

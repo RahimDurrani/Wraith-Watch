@@ -1,4 +1,9 @@
-
+// src/components/UI.jsx
+// ─────────────────────────────────────────────────────────
+// Shared, reusable UI primitives used across every page.
+// Badge, Metric, Card, CardTitle, MiniBar, AbuseBar,
+// Topbar, TopBtn — imported by any page that needs them.
+// ─────────────────────────────────────────────────────────
 
 export function Badge({ label, config }) {
   return (
@@ -52,16 +57,30 @@ export function CardTitle({ icon, children }) {
 }
 
 export function MiniBar({ data }) {
-  const max = Math.max(...data);
+  const values = Array.isArray(data) ? data : [];
+  const max = Math.max(...values, 1);   // avoid divide-by-zero
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 60 }}>
-      {data.map((v, i) => (
-        <div key={i} style={{
-          flex: 1, borderRadius: "3px 3px 0 0", minHeight: 3,
-          height: `${Math.round((v / max) * 100)}%`,
-          background: `rgba(55,138,221,${0.3 + (v / max) * 0.7})`,
-        }} />
-      ))}
+      {values.map((v, i) => {
+        const px = Math.round((v / max) * 56);   // pixel height, max 56 of 60
+        return (
+          <div key={i} style={{
+            flex: 1,
+            height: 60,
+            display: "flex",
+            alignItems: "flex-end",
+          }}>
+            <div style={{
+              width: "100%",
+              borderRadius: "3px 3px 0 0",
+              height: v > 0 ? Math.max(px, 4) : 3,
+              background: v > 0
+                ? `rgba(55,138,221,${0.4 + (v / max) * 0.6})`
+                : "var(--ww-border)",
+            }} />
+          </div>
+        );
+      })}
     </div>
   );
 }

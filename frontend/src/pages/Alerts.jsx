@@ -1,5 +1,5 @@
-
-import { useState }                 from "react";
+// src/pages/Alerts.jsx
+import { useState, useEffect }      from "react";
 import { useFetch }                 from "../hooks/useFetch";
 import { API, SEV_CONFIG,
          STATUS_CONFIG }            from "../utils/constants";
@@ -10,10 +10,19 @@ function Alerts({ setPage, setSelected }) {
   const [sevFilter, setSevFilter] = useState("");
   const [srcFilter, setSrcFilter] = useState("");
   const url = `${API}/alerts${sevFilter || srcFilter ? `?${sevFilter ? `severity=${sevFilter}` : ""}${sevFilter && srcFilter ? "&" : ""}${srcFilter ? `log_type=${srcFilter}` : ""}` : ""}`;
-  const { data: alerts } = useFetch(url);
+  const { data: alerts, reload } = useFetch(url);
+
+  // New alerts can appear at any time from the live log generator's rule
+  // engine, so keep this list current without requiring a manual refresh.
+  useEffect(() => {
+    const id = setInterval(reload, 8000);
+    return () => clearInterval(id);
+  }, [reload]);
+
   return (
     <>
       <Topbar title="Alerts">
+        <TopBtn icon="refresh" label="Refresh" onClick={reload} />
         <select value={sevFilter} onChange={e => setSevFilter(e.target.value)} style={{ fontSize: 12, padding: "4px 8px", borderRadius: 6, border: "0.5px solid var(--ww-border)", background: "var(--ww-surface)", color: "var(--ww-text)" }}>
           <option value="">All severities</option>
           <option value="critical">Critical</option>
@@ -54,8 +63,53 @@ function Alerts({ setPage, setSelected }) {
   );
 }
 
-function AlertDetail({ alertId, setPage }) {
+function AlertDetail({ alertId, setPage, setSelected }) {
   const { data: alert } = useFetch(`${API}/alerts/${alertId}`);
+  const [busy, setBusy]   = useState(null);   // "incident" | "pdf" | null
+  const [error, setError] = useState(null);
+
+  // Create (or reuse) the incident linked to this alert, and return its id.
+  const ensureIncident = async () => {
+    const res  = await fetch(`${API}/alerts/${alertId}/incident`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Could not open an incident for this alert.");
+    return data;
+  };
+
+  const openIncident = async () => {
+    setBusy("incident"); setError(null);
+    try {
+      const incident = await ensureIncident();
+      setSelected(incident.id);
+      setPage("incident_detail");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const exportPDF = async () => {
+    setBusy("pdf"); setError(null);
+    try {
+      const incident = await ensureIncident();
+      const res  = await fetch(`${API}/incidents/${incident.id}/report`);
+      const blob = await res.blob();
+      const url  = window.URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `incident_INC-00${incident.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e.message || "Could not generate the PDF.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (!alert) return <div style={{ padding: 24, color: "var(--ww-muted)" }}>Loading…</div>;
   const sev = SEV_CONFIG[alert.severity] || SEV_CONFIG.info;
   const abuseColor = alert.abuse_score >= 70 ? "#D85A30" : alert.abuse_score >= 30 ? "#BA7517" : "#1D9E75";
@@ -65,9 +119,14 @@ function AlertDetail({ alertId, setPage }) {
         <button onClick={() => setPage("alerts")} style={{ fontSize: 12, color: "var(--ww-muted)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, order: -1 }}>
           <i className="ti ti-arrow-left" aria-hidden="true" /> Alerts
         </button>
-        <TopBtn icon="folder-plus" label="Open incident" accent />
-        <TopBtn icon="file-type-pdf" label="Export PDF" />
+        <TopBtn icon="folder-plus" label={busy === "incident" ? "Opening…" : "Open incident"} accent onClick={openIncident} />
+        <TopBtn icon="file-type-pdf" label={busy === "pdf" ? "Generating…" : "Export PDF"} onClick={exportPDF} />
       </Topbar>
+      {error && (
+        <div style={{ margin: "0 16px", marginTop: 12, padding: "9px 12px", borderRadius: 8, background: "#FAECE7" }}>
+          <span style={{ fontSize: 12, color: "#712B13" }}>{error}</span>
+        </div>
+      )}
       <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           <Card>

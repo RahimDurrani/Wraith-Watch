@@ -1,4 +1,3 @@
-
 import { useFetch }                from "../hooks/useFetch";
 import { API, SEV_CONFIG,
          STATUS_CONFIG, SRC_STATUS }from "../utils/constants";
@@ -7,11 +6,15 @@ import { Badge, Metric, Card,
          AbuseBar, Topbar, TopBtn } from "../components/UI";
 
 function Dashboard({ setPage, setSelected }) {
-  const { data: stats }     = useFetch(`${API}/stats`);
-  const { data: alerts }    = useFetch(`${API}/alerts`);
-  const { data: sources }   = useFetch(`${API}/log-sources`);
-  const { data: chart }     = useFetch(`${API}/chart/alerts`);
-  const { data: incidents } = useFetch(`${API}/incidents`);
+  const { data: stats,     reload: reloadStats }     = useFetch(`${API}/stats`);
+  const { data: alerts,    reload: reloadAlerts }    = useFetch(`${API}/alerts`);
+  const { data: sources,   reload: reloadSources }   = useFetch(`${API}/log-sources`);
+  const { data: chart,     reload: reloadChart }     = useFetch(`${API}/chart/alerts`);
+  const { data: incidents, reload: reloadIncidents } = useFetch(`${API}/incidents`);
+
+  const refreshAll = () => {
+    reloadStats(); reloadAlerts(); reloadSources(); reloadChart(); reloadIncidents();
+  };
 
   const topAlerts = alerts ? alerts.slice(0, 5) : [];
   const topIPs    = alerts
@@ -21,8 +24,8 @@ function Dashboard({ setPage, setSelected }) {
   return (
     <>
       <Topbar title="Overview">
-        <TopBtn icon="upload"  label="Upload logs" />
-        <TopBtn icon="refresh" label="Refresh" />
+        <TopBtn icon="upload"  label="Upload logs" onClick={() => setPage("upload")} />
+        <TopBtn icon="refresh" label="Refresh"     onClick={refreshAll} />
       </Topbar>
       <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
 

@@ -1,3 +1,8 @@
+// src/components/Sidebar.jsx
+// ─────────────────────────────────────────────────────────
+// Left navigation sidebar.
+// Props: page, setPage, user, onLogout
+// ─────────────────────────────────────────────────────────
 
 export function Sidebar({ page, setPage, user, onLogout }) {
   const initial = (user?.username || "A")[0].toUpperCase();
@@ -54,7 +59,7 @@ export function Sidebar({ page, setPage, user, onLogout }) {
 
         <NavSection label="Respond">
           {nav("incidents", "folder-open",    "Incidents", 3, { bg: "#FAEEDA", text: "#633806" })}
-          {nav("reports",   "file-analytics", "Reports")}
+          {nav("reports",   "search",         "Log search")}
         </NavSection>
 
         <NavSection label="Configure">

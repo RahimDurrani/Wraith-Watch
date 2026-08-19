@@ -1,17 +1,20 @@
-# backend/utils/log_generator.py
-# ─────────────────────────────────────────────────────────
-# Background thread that generates realistic log lines
-# every 1–2.5 seconds and appends them to LIVE_LOG_BUFFER.
-#
-# In production replace this with a real Watchdog file
-# monitor or a syslog/Beats agent feeding your DB.
-# ─────────────────────────────────────────────────────────
-
 import time
 import random
+import re
 import threading
 from datetime import datetime
-from models.data import LIVE_LOG_BUFFER, LOG_LOCK, get_next_log_id
+# This rolling buffer holds the most recent generated log lines for the
+# Live Logs page. It lives here (not in the DB) because it is transient
+# real-time display data, not persistent forensic evidence.
+LIVE_LOG_BUFFER = []
+LOG_LOCK        = threading.Lock()
+_log_id_counter = 0
+
+
+def get_next_log_id():
+    global _log_id_counter
+    _log_id_counter += 1
+    return _log_id_counter
 
 # Pool of realistic log lines — (log_type, source, hostname, message, flagged, flag_level)
 LOG_POOL = [
@@ -41,28 +44,87 @@ LOG_POOL = [
 ]
 
 
-def _generate_loop():
-    """Runs forever in a background daemon thread."""
+def _generate_loop(app):
+    """
+    Runs forever in a background daemon thread.
+
+    Deliberately defensive: the whole body is wrapped per-iteration so a
+    single bad tick — a DB write conflict, an import problem, anything —
+    can never permanently kill this thread. If that happened, the Live
+    Logs page would go blank forever with no way to recover except a
+    full restart, which is exactly the failure this guards against.
+    """
+    import logging
+    import traceback
+    logger = logging.getLogger("wraithwatch.log_generator")
+
     while True:
-        entry = random.choice(LOG_POOL)
-        log_entry = {
-            "id":         get_next_log_id(),
-            "timestamp":  datetime.utcnow().strftime("%H:%M:%S"),
-            "log_type":   entry[0],
-            "source":     entry[1],
-            "hostname":   entry[2],
-            "message":    entry[3],
-            "flagged":    entry[4],
-            "flag_level": entry[5],
-        }
-        with LOG_LOCK:
-            LIVE_LOG_BUFFER.append(log_entry)
-            if len(LIVE_LOG_BUFFER) > 200:
-                LIVE_LOG_BUFFER.pop(0)
+        try:
+            entry = random.choice(LOG_POOL)
+            log_type, source, hostname, message, flagged, flag_level = entry
+
+            log_entry = {
+                "id":         get_next_log_id(),
+                "timestamp":  datetime.utcnow().strftime("%H:%M:%S"),
+                "log_type":   log_type,
+                "source":     source,
+                "hostname":   hostname,
+                "message":    message,
+                "flagged":    flagged,
+                "flag_level": flag_level,
+            }
+            with LOG_LOCK:
+                LIVE_LOG_BUFFER.append(log_entry)
+                if len(LIVE_LOG_BUFFER) > 200:
+                    LIVE_LOG_BUFFER.pop(0)
+
+            # ── Persist to the database so Log Search and Alerts stay real ─────
+            # Best-effort: the live buffer above is what the UI depends on, so
+            # a failure here must never stop the buffer from growing.
+            try:
+                from models.database import db, LogEntry, Alert, LogSource
+                from utils.rule_engine import run_rules
+                from utils.ip_reputation import enrich_alert
+
+                with app.app_context():
+                    ip_match = re.search(r"\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b", message)
+                    source_ip = ip_match.group(1) if ip_match else None
+
+                    log_row = LogEntry(
+                        source_ip=source_ip, timestamp=datetime.utcnow(),
+                        log_type=log_type, raw_message=message,
+                        hostname=hostname, source_name=source,
+                    )
+                    db.session.add(log_row)
+                    db.session.commit()
+
+                    fired = run_rules(
+                        {"raw_message": message, "log_type": log_type, "source_ip": source_ip},
+                        db, Alert,
+                    )
+                    for alert in fired:
+                        enrich_alert(alert, db)
+
+                    src = LogSource.query.filter_by(name=source).first()
+                    if src:
+                        src.last_seen = datetime.utcnow()
+                        src.total_logs += 1
+                        db.session.commit()
+            except Exception:
+                # DB persistence failed this tick — log it once so it's visible
+                # in the terminal, but keep the live buffer running regardless.
+                logger.warning("log_generator: DB write failed this tick:\n%s", traceback.format_exc())
+
+        except Exception:
+            # Something broke even before the buffer append — this should be
+            # essentially impossible, but log it loudly rather than dying silently.
+            logger.error("log_generator: unexpected error, retrying next tick:\n%s", traceback.format_exc())
+
         time.sleep(random.uniform(1.0, 2.5))
 
 
-def start():
+def start(app):
     """Start the background log generator. Called once from app.py on startup."""
-    t = threading.Thread(target=_generate_loop, daemon=True)
+    t = threading.Thread(target=_generate_loop, args=(app,), daemon=True)
     t.start()
+

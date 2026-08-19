@@ -1,12 +1,6 @@
-# backend/utils/parsers.py
-# ─────────────────────────────────────────────────────────
-# Week 3 log parsers — Apache, syslog, and EVTX.
-# Used by upload.py to parse uploaded log files.
-# ─────────────────────────────────────────────────────────
-
 import re
 
-# ── Format detection ──────────────────────────────────────────────────────────
+# ── Format detection 
 def detect_format(filename: str, first_line: str) -> str:
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext == "evtx":
@@ -20,7 +14,7 @@ def detect_format(filename: str, first_line: str) -> str:
     return "unknown"
 
 
-# ── Apache parser ─────────────────────────────────────────────────────────────
+# ── Apache parser
 _APACHE_RE = re.compile(
     r'(?P<source_ip>\S+)\s+-\s+-\s+'
     r'"(?P<method>\w+)\s+(?P<path>\S+)\s+HTTP/[\d.]+"\s+'
@@ -54,7 +48,7 @@ def parse_apache_line(line: str) -> dict | None:
     }
 
 
-# ── Syslog parser ─────────────────────────────────────────────────────────────
+# ── Syslog parser 
 _SYSLOG_RE = re.compile(
     r'^(?:<\d+>)?(?P<month>\w{3})\s+(?P<day>\s?\d{1,2})\s+(?P<time>\d{2}:\d{2}:\d{2})\s+'
     r'(?P<hostname>\S+)\s+(?P<process>\S+?)(?:\[\d+\])?:\s+(?P<msg>.+)$'
@@ -97,7 +91,7 @@ def parse_syslog_line(line: str) -> dict | None:
     }
 
 
-# ── Batch parser ──────────────────────────────────────────────────────────────
+# ── Batch parser 
 def parse_lines(lines: list, fmt: str) -> list:
     results = []
     for line in lines:

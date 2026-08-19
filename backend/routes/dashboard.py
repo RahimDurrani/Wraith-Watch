@@ -7,6 +7,7 @@
 from flask           import Blueprint, jsonify, request
 from models.database import db, Alert, Incident, LogSource
 from datetime        import datetime
+from utils.security  import sanitise
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api")
 
@@ -46,10 +47,77 @@ def alert_detail(aid):
     return jsonify(a.to_dict())
 
 
+@dashboard_bp.route("/alerts/<int:aid>/incident", methods=["POST"])
+def open_incident_from_alert(aid):
+    """
+    Create (or return the existing) incident for this alert.
+    Idempotent — calling this twice on the same alert returns the same
+    incident rather than creating duplicates. Powers the 'Open incident'
+    and 'Export PDF' buttons on the alert detail page.
+    """
+    from models.database import Incident, IncidentAudit
+    alert = Alert.query.get_or_404(aid)
+
+    if alert.incident_id:
+        incident = Incident.query.get(alert.incident_id)
+        if incident:
+            return jsonify(incident.to_dict())
+
+    incident = Incident(
+        title       = alert.title,
+        description = alert.description or f"Incident opened from alert #{alert.id} "
+                      f"({alert.rule_name or 'unknown rule'}) on source {alert.source_ip or 'unknown IP'}.",
+        severity    = alert.severity,
+        status      = "new",
+    )
+    db.session.add(incident)
+    db.session.flush()
+
+    alert.incident_id = incident.id
+    db.session.add(IncidentAudit(
+        incident_id=incident.id,
+        action=f"Incident opened from alert #{alert.id}",
+        user="analyst",
+    ))
+    db.session.commit()
+    return jsonify(incident.to_dict()), 201
+
+
 @dashboard_bp.route("/incidents")
 def incidents():
     results = Incident.query.order_by(Incident.created_at.desc()).all()
     return jsonify([i.to_dict() for i in results])
+
+
+@dashboard_bp.route("/incidents", methods=["POST"])
+def create_incident():
+    """Create a new incident from the Incidents page."""
+    from models.database import IncidentAudit
+    data        = request.get_json(silent=True) or {}
+    title       = sanitise((data.get("title") or "").strip())
+    description = sanitise((data.get("description") or "").strip())
+    severity    = (data.get("severity") or "medium").strip().lower()
+    analyst     = sanitise((data.get("analyst") or "").strip()) or None
+
+    if not title:
+        return jsonify({"error": "Incident title is required."}), 400
+    if severity not in ("info", "low", "medium", "high", "critical"):
+        severity = "medium"
+
+    incident = Incident(
+        title=title, description=description or None,
+        severity=severity, status="new", analyst=analyst,
+    )
+    db.session.add(incident)
+    db.session.flush()
+
+    db.session.add(IncidentAudit(
+        incident_id=incident.id,
+        action="Incident created",
+        user=analyst or "analyst",
+    ))
+    db.session.commit()
+    return jsonify(incident.to_dict()), 201
 
 
 @dashboard_bp.route("/incidents/<int:iid>")
@@ -90,7 +158,7 @@ def add_incident_note(iid):
     from models.database import IncidentNote, IncidentAudit
     inc  = Incident.query.get_or_404(iid)
     data = request.get_json(silent=True) or {}
-    content = (data.get("content") or "").strip()
+    content = sanitise((data.get("content") or "").strip())
     author  = data.get("author", "analyst")
     if not content:
         return jsonify({"error": "Note content required"}), 400
@@ -110,6 +178,34 @@ def add_incident_note(iid):
 def log_sources():
     sources = LogSource.query.filter_by(is_active=True).all()
     return jsonify([s.to_dict() for s in sources])
+
+
+@dashboard_bp.route("/log-sources", methods=["POST"])
+def create_log_source():
+    """Register a new log source manually from the Log Sources page."""
+    data     = request.get_json(silent=True) or {}
+    name     = sanitise((data.get("name") or "").strip())
+    src_type = (data.get("type") or data.get("source_type") or "").strip().lower()
+    hostname = sanitise((data.get("hostname") or "").strip())
+
+    if not name:
+        return jsonify({"error": "Source name is required."}), 400
+    if src_type not in ("apache", "syslog", "evtx"):
+        return jsonify({"error": "Type must be apache, syslog, or evtx."}), 400
+    if LogSource.query.filter_by(name=name).first():
+        return jsonify({"error": "A log source with that name already exists."}), 400
+
+    source = LogSource(
+        name        = name,
+        source_type = src_type,
+        hostname    = hostname or None,
+        last_seen   = datetime.utcnow(),
+        total_logs  = 0,
+        is_active   = True,
+    )
+    db.session.add(source)
+    db.session.commit()
+    return jsonify(source.to_dict()), 201
 
 
 @dashboard_bp.route("/log-sources/<int:sid>/ping", methods=["POST"])

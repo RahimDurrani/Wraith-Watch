@@ -1,8 +1,3 @@
-# backend/utils/auth.py
-# ─────────────────────────────────────────────────────────
-# JWT helpers, login_required decorator, validation.
-# ─────────────────────────────────────────────────────────
-
 import re
 import jwt
 from datetime  import datetime, timedelta

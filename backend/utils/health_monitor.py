@@ -1,19 +1,3 @@
-# backend/utils/health_monitor.py
-# ─────────────────────────────────────────────────────────
-# Week 5 deliverable: background scheduler that checks log
-# source health every 60 seconds.
-#
-# Uses the `schedule` library — simpler than Celery for a
-# 12-week project. Runs in a daemon thread so it dies
-# cleanly when Flask exits.
-#
-# What it does:
-#   - Reads all LogSource records from the DB
-#   - Checks last_seen timestamp against stale threshold
-#   - Updates status in DB (active / stale / silent)
-#   - Logs a warning if a source goes silent
-# ─────────────────────────────────────────────────────────
-
 import threading
 import logging
 import schedule

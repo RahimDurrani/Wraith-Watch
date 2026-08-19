@@ -1,15 +1,3 @@
-# backend/app.py
-# ─────────────────────────────────────────────────────────
-# WraithWatch — Flask application entry point.
-#
-# Run:
-#   pip install flask flask-cors flask-sqlalchemy flask-bcrypt pyjwt schedule requests
-#   python app.py
-#
-# First run: creates wraithwatch.db with all tables + seed data.
-# Week 9: change DATABASE_URL to PostgreSQL — nothing else changes.
-# ─────────────────────────────────────────────────────────
-
 import os
 import logging
 from flask        import Flask
@@ -52,11 +40,15 @@ from routes.dashboard import dashboard_bp
 from routes.auth      import auth_bp
 from routes.upload    import upload_bp
 from routes.live_logs import live_logs_bp
+from routes.reports   import reports_bp
+from routes.rules     import rules_bp
 
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(live_logs_bp)
+app.register_blueprint(reports_bp)
+app.register_blueprint(rules_bp)
 
 # ── Create tables + seed data ─────────────────────────────────────────────────
 with app.app_context():
@@ -69,12 +61,15 @@ with app.app_context():
     from utils.health_monitor import seed_log_sources
     seed_log_sources(app)
 
+    from routes.rules import seed_rules
+    seed_rules(app)
+
 # ── Start background services ─────────────────────────────────────────────────
 from utils.health_monitor import start as start_health_monitor
 start_health_monitor(app)
 
 from utils import log_generator
-log_generator.start()
+log_generator.start(app)
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":

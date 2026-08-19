@@ -1,4 +1,4 @@
-// src/pages/UploadLogs.jsx
+
 import { useState }                        from "react";
 import { useFetch }                        from "../hooks/useFetch";
 import { API }                             from "../utils/constants";
@@ -54,10 +54,16 @@ function UploadLogs() {
     e.target.value = "";
   };
 
+  const refreshView = () => {
+    setResult(null);
+    setError(null);
+    reload();
+  };
+
   return (
     <>
       <Topbar title="Upload logs">
-        <TopBtn icon="refresh" label="Refresh history" onClick={reload} />
+        <TopBtn icon="refresh" label="Refresh" onClick={refreshView} />
       </Topbar>
 
       <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>

@@ -1,7 +1,4 @@
-# backend/routes/auth.py
-# ─────────────────────────────────────────────────────────
-# Auth routes — now reading/writing to the real DB.
-# ─────────────────────────────────────────────────────────
+
 
 from flask           import Blueprint, request, jsonify
 from datetime        import datetime

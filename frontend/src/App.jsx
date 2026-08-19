@@ -17,6 +17,8 @@ import { Incidents,
 import LogSources            from "./pages/LogSources";
 import UploadLogs            from "./pages/UploadLogs";
 import LiveLogs              from "./pages/LiveLogs";
+import LogSearch            from "./pages/LogSearch";
+import Rules                from "./pages/Rules";
 
 export default function App() {
   const [page, setPage] = useState("dashboard");
@@ -24,17 +26,35 @@ export default function App() {
   const [authPage, setAuthPage] = useState("login"); // "login" | "signup"
   const [auth, setAuth] = useState({ token: null, user: null, checked: false });
 
-  // Restore session from in-memory token on mount (no localStorage in this preview environment —
-  // in your real React app, swap this for localStorage.getItem("ww_token"))
+  // Restore session from localStorage on page load so a browser refresh
+  // keeps the user logged in instead of bouncing back to the login screen.
   useEffect(() => {
+    try {
+      const token = localStorage.getItem("ww_token");
+      const user  = JSON.parse(localStorage.getItem("ww_user") || "null");
+      if (token && user) {
+        setAuth({ token, user, checked: true });
+        return;
+      }
+    } catch {
+      // corrupt storage — fall through to logged-out state
+    }
     setAuth(a => ({ ...a, checked: true }));
   }, []);
 
   const handleAuth = (token, user) => {
+    try {
+      localStorage.setItem("ww_token", token);
+      localStorage.setItem("ww_user", JSON.stringify(user));
+    } catch { /* storage unavailable — session will be memory-only */ }
     setAuth({ token, user, checked: true });
   };
 
   const handleLogout = () => {
+    try {
+      localStorage.removeItem("ww_token");
+      localStorage.removeItem("ww_user");
+    } catch { /* ignore */ }
     setAuth({ token: null, user: null, checked: true });
     setPage("dashboard");
     setAuthPage("login");
@@ -52,13 +72,13 @@ export default function App() {
     switch (page) {
       case "dashboard":      return <Dashboard setPage={setPage} setSelected={setSelected} />;
       case "alerts":         return <Alerts setPage={setPage} setSelected={setSelected} />;
-      case "alert_detail":   return <AlertDetail alertId={selected} setPage={setPage} />;
+      case "alert_detail":   return <AlertDetail alertId={selected} setPage={setPage} setSelected={setSelected} />;
       case "incidents":      return <Incidents setPage={setPage} setSelected={setSelected} />;
       case "incident_detail":return <IncidentDetail incidentId={selected} setPage={setPage} />;
       case "sources":        return <LogSources />;
       case "logs":           return <LiveLogs />;
-      case "reports":        return <Placeholder title="Reports" icon="file-analytics" />;
-      case "rules":          return <Placeholder title="Rules" icon="shield-check" />;
+      case "reports":        return <LogSearch />;
+      case "rules":          return <Rules />;
       case "upload":         return <UploadLogs />;
       default:               return <Dashboard setPage={setPage} setSelected={setSelected} />;
     }
@@ -96,7 +116,7 @@ export default function App() {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}>
         <Sidebar page={page} setPage={setPage} user={auth.user} onLogout={handleLogout} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--ww-card)" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--ww-card)", position: "relative" }}>
           {renderPage()}
         </div>
       </div>
