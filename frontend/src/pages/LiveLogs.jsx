@@ -1,9 +1,7 @@
-
 import { useState, useEffect, useRef } from "react";
 import { API, FLAG_COLORS,
          LOG_TYPE_COLORS }             from "../utils/constants";
 import { Topbar, TopBtn }              from "../components/UI";
-
 
 function LiveLogs() {
   const [logs, setLogs]             = useState([]);
@@ -256,7 +254,28 @@ function LiveLogs() {
           {visibleLogs.length === 0 && (
             <div style={{ padding: 32, textAlign: "center", color: "var(--ww-muted)", fontSize: 12, fontFamily: "sans-serif" }}>
               <i className="ti ti-activity" style={{ fontSize: 32, display: "block", marginBottom: 8 }} aria-hidden="true" />
-              {paused ? "Paused — press Resume to continue streaming." : "Waiting for log entries…"}
+              {paused ? (
+                "Paused — press Resume to continue streaming."
+              ) : stats && stats.total > 0 ? (
+                // The generator IS producing entries (stats is fetched with no
+                // filters) — they're just all excluded by the current Type /
+                // Flagged / Search filter. Showing "waiting" here would be
+                // misleading, so say what's actually happening instead.
+                <>
+                  <div style={{ marginBottom: 10 }}>
+                    {stats.total} log{stats.total === 1 ? "" : "s"} received overall, but none match your current filter.
+                  </div>
+                  <button onClick={handleClear} style={{
+                    fontSize: 12, fontWeight: 500, padding: "6px 14px", borderRadius: 8,
+                    border: "0.5px solid var(--ww-border)", background: "var(--ww-surface)",
+                    color: "#378ADD", cursor: "pointer",
+                  }}>
+                    Clear filters
+                  </button>
+                </>
+              ) : (
+                "Waiting for log entries…"
+              )}
             </div>
           )}
 
@@ -420,5 +439,6 @@ function LiveLogs() {
     </>
   );
 }
+
 
 export default LiveLogs;

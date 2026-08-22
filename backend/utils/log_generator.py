@@ -3,9 +3,7 @@ import random
 import re
 import threading
 from datetime import datetime
-# This rolling buffer holds the most recent generated log lines for the
-# Live Logs page. It lives here (not in the DB) because it is transient
-# real-time display data, not persistent forensic evidence.
+
 LIVE_LOG_BUFFER = []
 LOG_LOCK        = threading.Lock()
 _log_id_counter = 0
@@ -57,6 +55,7 @@ def _generate_loop(app):
     import logging
     import traceback
     logger = logging.getLogger("wraithwatch.log_generator")
+    confirmed_alive = False
 
     while True:
         try:
@@ -77,6 +76,10 @@ def _generate_loop(app):
                 LIVE_LOG_BUFFER.append(log_entry)
                 if len(LIVE_LOG_BUFFER) > 200:
                     LIVE_LOG_BUFFER.pop(0)
+
+            if not confirmed_alive:
+                logger.info("Log generator is alive — first entry written to the live buffer.")
+                confirmed_alive = True
 
             # ── Persist to the database so Log Search and Alerts stay real ─────
             # Best-effort: the live buffer above is what the UI depends on, so
@@ -125,6 +128,10 @@ def _generate_loop(app):
 
 def start(app):
     """Start the background log generator. Called once from app.py on startup."""
+    import logging
+    logging.getLogger("wraithwatch.log_generator").info(
+        "Log generator starting — a new simulated log line every 1–2.5s."
+    )
     t = threading.Thread(target=_generate_loop, args=(app,), daemon=True)
     t.start()
 

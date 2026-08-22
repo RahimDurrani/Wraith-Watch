@@ -9,14 +9,12 @@ logging.basicConfig(level=logging.INFO, format="%(name)s — %(message)s")
 
 load_dotenv()
 
-# ── App setup ─────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 
 bcrypt = Bcrypt(app)
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-# SQLite for development — change to PostgreSQL in Week 9:
 # DATABASE_URL=postgresql://user:password@localhost:5432/wraithwatch
 app.config["SQLALCHEMY_DATABASE_URI"]        = os.environ.get("DATABASE_URL", "sqlite:///wraithwatch.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False

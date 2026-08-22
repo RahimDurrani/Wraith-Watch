@@ -1,9 +1,3 @@
-# backend/routes/dashboard.py
-# ─────────────────────────────────────────────────────────
-# Core SIEM data routes — now using SQLAlchemy DB queries
-# instead of hardcoded lists.
-# ─────────────────────────────────────────────────────────
-
 from flask           import Blueprint, jsonify, request
 from models.database import db, Alert, Incident, LogSource
 from datetime        import datetime

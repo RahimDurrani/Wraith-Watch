@@ -1,7 +1,7 @@
 import json
 import time
 from flask       import Blueprint, request, jsonify, Response
-from models.data import LIVE_LOG_BUFFER, LOG_LOCK
+from utils.log_generator import LIVE_LOG_BUFFER, LOG_LOCK
 
 live_logs_bp = Blueprint("live_logs", __name__, url_prefix="/api/logs")
 
@@ -28,10 +28,10 @@ def logs_recent():
     with LOG_LOCK:
         logs = list(LIVE_LOG_BUFFER)
 
-   
+    # Only entries newer than since
     logs = [l for l in logs if l["id"] > since]
 
-
+    # Apply filters
     if log_type:
         logs = [l for l in logs if l["log_type"] == log_type]
     if flagged:
@@ -42,7 +42,7 @@ def logs_recent():
                 or search in l["hostname"].lower()
                 or search in l["source"].lower()]
 
-    logs = logs[-limit:]   
+    logs = logs[-limit:]   # newest N rows
 
     return jsonify({
         "logs":            logs,

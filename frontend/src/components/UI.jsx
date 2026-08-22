@@ -1,10 +1,3 @@
-// src/components/UI.jsx
-// ─────────────────────────────────────────────────────────
-// Shared, reusable UI primitives used across every page.
-// Badge, Metric, Card, CardTitle, MiniBar, AbuseBar,
-// Topbar, TopBtn — imported by any page that needs them.
-// ─────────────────────────────────────────────────────────
-
 export function Badge({ label, config }) {
   return (
     <span style={{

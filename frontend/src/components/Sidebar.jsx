@@ -1,9 +1,3 @@
-// src/components/Sidebar.jsx
-// ─────────────────────────────────────────────────────────
-// Left navigation sidebar.
-// Props: page, setPage, user, onLogout
-// ─────────────────────────────────────────────────────────
-
 export function Sidebar({ page, setPage, user, onLogout }) {
   const initial = (user?.username || "A")[0].toUpperCase();
 

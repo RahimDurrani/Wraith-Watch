@@ -1,8 +1,3 @@
-// src/App.jsx
-// ─────────────────────────────────────────────────────────
-// Root component — auth gating, routing, global styles.
-// This is the only file that imports everything else.
-// ─────────────────────────────────────────────────────────
 import { useState, useEffect } from "react";
 
 import { Sidebar }           from "./components/Sidebar";
